@@ -242,6 +242,45 @@
     .dlg-error { min-height: 1.2em; margin: 8px 0 0; font-size: 0.85rem; color: var(--danger); }
     .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
 
+    /* Statistik */
+    dialog.stats { width: min(760px, 94vw); }
+    .st-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+    .st-head h3 { margin: 0; }
+    .st-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 22px; }
+    .st-period { min-width: 200px; text-align: center; font-weight: 600; }
+    .st-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .st-tiles.two { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
+    .st-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-tile); padding: 18px 20px; gap: 6px; }
+    .st-tile .stat-value { font-size: 1.9rem; line-height: 1.15; }
+    .st-tile .icon { vertical-align: -0.2em; margin-right: 6px; }
+    .st-sub { font-size: 0.85rem; color: var(--muted); min-height: 1.2em; }
+    .st-ho .stat-value, .st-ho .st-sub b { color: var(--accent); }
+    .st-office .stat-value, .st-office .st-sub b { color: var(--office); }
+    .st-ratio { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+    .st-ratio .ho, .st-seg.ho { background: var(--accent); }
+    .st-ratio .office, .st-seg.office { background: var(--office); }
+    .st-note { margin-top: 14px; font-size: 0.8rem; color: var(--muted); }
+    .st-title { margin: 28px 0 12px; font-size: 0.9rem; color: var(--muted); }
+    .st-chart { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+    .st-chart:not(.trend) .st-col { min-width: 0; }
+    .st-col { flex: 1 0 0; min-width: var(--w, 44px); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .st-bar { width: 100%; max-width: 56px; height: 110px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+    .st-seg { display: block; border-radius: 5px; }
+    .st-lbl { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+    .st-num { display: flex; gap: 6px; font-size: 0.75rem; }
+    .st-num .ho { color: var(--accent); }
+    .st-num .office { color: var(--office); }
+    .st-rows { display: grid; gap: 10px; }
+    .st-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 48px 54px 120px; gap: 12px; align-items: center; font-size: 0.9rem; }
+    .st-hbar { height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .st-hbar i { display: block; height: 100%; background: var(--flex); border-radius: 999px; }
+    .st-val { text-align: right; font-weight: 500; }
+    .st-delta { text-align: right; font-size: 0.8rem; }
+    .st-meta { font-size: 0.75rem; color: var(--muted); text-align: right; white-space: nowrap; }
+    .st-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .st-chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2); font-size: 0.9rem; }
+    .st-chip b { font-weight: 600; }
+
     @media (max-width: 760px) {
         .app { padding: 24px 16px 48px; gap: 20px; }
         .card { padding: 22px; }
@@ -268,6 +307,19 @@
         #erpDlg .dlg-actions { gap: 8px; }
         #erpDlg .dlg-actions .btn { padding: 0 12px; font-size: 0.85rem; }
         #erpDlg .dlg-actions .btn-primary { flex: 1; }
+        .top-right { flex-wrap: wrap; gap: 12px 16px; }
+        .stats-btn-text { display: none; }
+        .st-tiles { gap: 8px; }
+        dialog.stats { padding: 22px 16px; }
+        .st-tile { padding: 12px 8px; }
+        .st-tile .stat-label { font-size: 0.75rem; }
+        .st-tile .stat-value { font-size: 1.5rem; }
+        .st-tile .icon { display: none; }
+        .st-sub { font-size: 0.75rem; }
+        .st-row { grid-template-columns: 28px minmax(0, 1fr) 44px 50px; gap: 8px; }
+        .st-meta { display: none; }
+        .st-chart:not(.trend) { gap: 6px; }
+        .st-period { min-width: 0; flex: 1; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -297,6 +349,9 @@
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></symbol>
+    <symbol id="i-chart-column" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
     <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
 </svg>
 
@@ -311,6 +366,7 @@
         </div>
         <div class="top-right">
             <div class="clock" id="clockDisplay">00:00:00</div>
+            <button class="btn" onclick="openStats()" title="Statistik" aria-label="Statistik"><svg class="icon"><use href="#i-chart-column"/></svg><span class="stats-btn-text">Statistik</span></button>
             <div class="tabs">
                 <button class="tab active" id="tabLive" onclick="setMode('live')">Live-Tracking</button>
                 <button class="tab" id="tabPlan" onclick="setMode('plan')">Tagesplaner</button>
@@ -497,6 +553,25 @@
     </form>
 </dialog>
 
+<!-- Statistik -->
+<dialog id="statsDlg" class="stats">
+    <div class="st-head">
+        <h3>Statistik</h3>
+        <div class="tabs" role="group" aria-label="Zeitraum">
+            <button type="button" class="tab" data-mode="month">Monat</button>
+            <button type="button" class="tab" data-mode="year">Jahr</button>
+            <button type="button" class="tab" data-mode="all">Gesamt</button>
+        </div>
+    </div>
+    <div class="st-nav">
+        <button type="button" class="icon-btn" id="stPrev" aria-label="Voriger Zeitraum" title="Voriger Zeitraum"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+        <span class="st-period" id="stPeriod"></span>
+        <button type="button" class="icon-btn" id="stNext" aria-label="Nächster Zeitraum" title="Nächster Zeitraum"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
+    </div>
+    <div id="statsBody"></div>
+    <div class="dlg-actions"><button type="button" class="btn" id="statsClose">Schließen</button></div>
+</dialog>
+
 <!-- ERP-Import: Vorschau -->
 <dialog id="erpDlg" class="wide">
     <h3 id="erpTitle">ERP-Zeitnachweis importieren</h3>
@@ -538,13 +613,13 @@ const APP_ID = 'arbeitszeitrechner';
 const DB_NAME = 'arbeitszeit';
 const WD_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const WD_LONG = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
-const TYPES = { work: 'Arbeitstag', vacation: 'Urlaub', sick: 'Krank', holiday: 'Feiertag', training: 'Schulung', flex: 'Gleitzeitausgleich' };   // Tagesarten; alle außer 'work' und 'flex' zählen mit Saldo 0, 'flex' senkt das Saldo um das Tagessoll
-const TYPE_SHORT = { flex: 'Gleitzeit' };      // Kurzform für den Kalender
+const TYPES = { work: 'Arbeitstag', vacation: 'Urlaub', sick: 'Krank', holiday: 'Feiertag', training: 'Schulung', assembly: 'Betriebsversammlung', trip: 'Dienstreise', flex: 'Gleitzeitausgleich' };   // Tagesarten; alle außer 'work' und 'flex' zählen mit Saldo 0, 'flex' senkt das Saldo um das Tagessoll
+const TYPE_SHORT = { flex: 'Gleitzeit', assembly: 'Versammlung' };      // Kurzform für den Kalender
 const showLoc = r => r.type === 'work' && (r.manual ? r.locSet === true : r.start != null);      // Arbeitsort gibt es bei Tagen aus Zeiten und bei direkt eingegebenem Saldo, wenn er angegeben wurde
 const locCls = r => r.location === 'Office' ? 'office' : 'ho';
 const locBadge = r => `<span class="cal-loc ${locCls(r)}" title="${LOCATIONS[r.location]}">${icon(r.location === 'Office' ? 'building' : 'house')}</span>`;
 const locChip = r => `<span class="hist-loc ${locCls(r)}" title="${LOCATIONS[r.location]}">${icon(r.location === 'Office' ? 'building' : 'house')}<span class="hist-loc-text">${LOCATIONS[r.location]}</span></span>`;
-const TYPE_ICON = { vacation: 'sun', sick: 'thermometer', holiday: 'flag', training: 'graduation-cap', flex: 'hourglass' };
+const TYPE_ICON = { vacation: 'sun', sick: 'thermometer', holiday: 'flag', training: 'graduation-cap', assembly: 'users', trip: 'briefcase', flex: 'hourglass' };
 
 /* ================= Datenbank-Schema =================
    Jede Migration hebt die DB um genau eine Version an. Neue Versionen werden
@@ -1285,7 +1360,7 @@ async function editDay(iso) {
     if (rec && rec.check && rec.finished) { rec.check = false; saveDay(rec); histDirty = true; refresh(); }      // Tag wurde geöffnet: Kennzeichnung entfällt
     const vals = await openDialog({
         title: `Tag bearbeiten: ${WD_LONG[wdIndex(iso)]}, ${fmtDate(iso)}`,
-        text: 'Urlaub, Krank, Feiertag und Schulung zählen mit Saldo 0. Ein Arbeitstag wird aus Beginn, Ende und Abwesenheiten berechnet, oder du gibst das Saldo direkt ein und wählst optional den Arbeitsort. Beim heutigen Tag bleibt das Ende leer, solange du noch arbeitest.',
+        text: 'Urlaub, Krank, Feiertag, Schulung, Betriebsversammlung und Dienstreise zählen mit Saldo 0. Ein Arbeitstag wird aus Beginn, Ende und Abwesenheiten berechnet, oder du gibst das Saldo direkt ein und wählst optional den Arbeitsort. Beim heutigen Tag bleibt das Ende leer, solange du noch arbeitest.',
         fields: dayFields(rec, false),
         okText: 'Speichern',
         validate: v => dayError(v, iso)
@@ -1542,6 +1617,8 @@ function erpDayType(labels) {
     if (/krank/.test(t)) return 'sick';
     if (/urlaub/.test(t)) return 'vacation';
     if (/schulung|seminar|fortbildung|weiterbildung|lehrgang/.test(t)) return 'training';
+    if (/betriebsversammlung|betriebsvers\.|personalversammlung/.test(t)) return 'assembly';
+    if (/dienstreise|dienstgang|geschäftsreise/.test(t)) return 'trip';
     if (/feiertag|neujahr|könige|karfreitag|ostern|tag der arbeit|1\. mai|himmelfahrt|pfingst|fronleichnam|einheit|allerheiligen|weihnacht|reformation|buß/.test(t)) return 'holiday';
     return '?';
 }
@@ -1928,7 +2005,7 @@ async function readPdfPages(file) {
 }
 
 /* ---- Tage aus den gebuchten Zeiten aufbauen ---- */
-const ERP_TYPE_OPTS = { '': 'Überspringen', vacation: 'Urlaub', sick: 'Krank', holiday: 'Feiertag', training: 'Schulung', flex: 'Gleitzeitausgleich' };
+const ERP_TYPE_OPTS = { '': 'Überspringen', vacation: 'Urlaub', sick: 'Krank', holiday: 'Feiertag', training: 'Schulung', assembly: 'Betriebsversammlung', trip: 'Dienstreise', flex: 'Gleitzeitausgleich' };
 
 /* Wegezeiten eines Tages (Minuten je Weg) auf Dauer und Anzahl der App abbilden */
 function erpTravel(list) {
@@ -2203,6 +2280,162 @@ async function importErp(file) {
 $('erpFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importErp(f); };
 
 /* ================= Start ================= */
+/* ================= Statistik =================
+   Zählt nur erfasste Tage (saldo gesetzt), genau wie Kalender und Historie.
+   Arbeitstag = Tagesart "Arbeitstag". Alle anderen Tagesarten (siehe TYPES) zählen nicht mit.
+   Prozentwerte beziehen sich auf Arbeitstage mit Ortsangabe (HO oder Büro). */
+const MONTH_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const ST = { mode: 'month', ym: '', year: '' };
+const statsPct = (n, total) => total ? Math.round(n / total * 100) : 0;
+
+function statsFirstDate() {
+    let min = null;
+    for (const r of S.days.values()) if (r.saldo != null && (min === null || r.date < min)) min = r.date;
+    return min;
+}
+function statsRange() {
+    if (ST.mode === 'month') return { from: ST.ym + '-01', to: ST.ym + '-31', label: monthName(ST.ym) };
+    if (ST.mode === 'year') return { from: ST.year + '-01-01', to: ST.year + '-12-31', label: ST.year };
+    const first = statsFirstDate();
+    return { from: '0000-00-00', to: '9999-99-99', label: first ? `Gesamt seit ${fmtDate(first)}` : 'Gesamt' };
+}
+function statsCompute(from, to) {
+    const st = { work: 0, ho: 0, office: 0, noLoc: 0, abs: {}, wd: Array.from({ length: 7 }, () => ({ ho: 0, office: 0 })), months: {}, wt: Array.from({ length: 7 }, () => ({ n: 0, netto: 0, start: 0, end: 0 })) };
+    for (const r of S.days.values()) {
+        if (r.saldo == null || r.date < from || r.date > to) continue;
+        if (r.type !== 'work') { st.abs[r.type] = (st.abs[r.type] || 0) + 1; continue; }
+        st.work++;
+        if (!showLoc(r)) { st.noLoc++; continue; }
+        const k = locCls(r);                                   // 'ho' oder 'office'
+        st[k]++;
+        st.wd[wdIndex(r.date)][k]++;
+        (st.months[r.date.slice(0, 7)] ??= { ho: 0, office: 0 })[k]++;
+        if (!r.manual && r.finished && r.start && r.end && r.netto != null) {      // nur Tage aus Zeiten: Netto = angerechnete Arbeitszeit inkl. Wegezeit
+            const w = st.wt[wdIndex(r.date)];
+            w.n++; w.netto += r.netto; w.start += parseHM(r.start); w.end += parseHM(r.end);
+        }
+    }
+    return st;
+}
+/* Gestapelte Säulen (Büro oben, Homeoffice unten), Höhe relativ zur größten Säule */
+function colChart(items, minW, cls = '') {
+    const max = Math.max(1, ...items.map(i => i.ho + i.office));
+    const seg = (n, c) => n ? `<span class="st-seg ${c}" style="height:max(4px, ${n / max * 100}%)"></span>` : '';
+    return `<div class="st-chart ${cls}" style="--w:${minW}px">` + items.map(i => {
+        const txt = `${i.title}: ${i.ho} Homeoffice, ${i.office} Büro`;
+        return `<div class="st-col" role="img" aria-label="${txt}" title="${txt}"><div class="st-bar">${seg(i.office, 'office')}${seg(i.ho, 'ho')}</div>` +
+            `<span class="st-lbl">${i.label}</span><span class="st-num"><span class="ho">${i.ho}</span><span class="office">${i.office}</span></span></div>`;
+    }).join('') + '</div>';
+}
+function statsMonthItems(st) {
+    const items = [];
+    if (ST.mode === 'year') {
+        for (let m = 1; m <= 12; m++) { const d = st.months[`${ST.year}-${pad(m)}`] || { ho: 0, office: 0 }; items.push({ label: MONTH_SHORT[m - 1], title: `${MONTH_SHORT[m - 1]} ${ST.year}`, ...d }); }
+    } else {
+        const first = statsFirstDate();
+        if (!first) return items;
+        let [y, m] = first.slice(0, 7).split('-').map(Number);
+        const [ey, em] = S.todayISO.slice(0, 7).split('-').map(Number);
+        while (y < ey || (y === ey && m <= em)) {
+            const d = st.months[`${y}-${pad(m)}`] || { ho: 0, office: 0 };
+            items.push({ label: `${MONTH_SHORT[m - 1]} ${String(y).slice(2)}`, title: `${MONTH_SHORT[m - 1]} ${y}`, ...d });
+            if (++m > 12) { m = 1; y++; }
+        }
+    }
+    return items;
+}
+function renderStatsDlg() {
+    const { from, to, label } = statsRange();
+    const st = statsCompute(from, to);
+    const located = st.ho + st.office;
+    const hoP = statsPct(st.ho, located), offP = located ? 100 - hoP : 0;
+    const days = n => `${n} ${n === 1 ? 'Tag' : 'Tage'}`;
+
+    document.querySelectorAll('#statsDlg .tab').forEach(b => b.classList.toggle('active', b.dataset.mode === ST.mode));
+    setText($('stPeriod'), label);
+    const first = statsFirstDate();
+    $('stPrev').disabled = ST.mode === 'all' || !first || (ST.mode === 'month' ? ST.ym <= first.slice(0, 7) : ST.year <= first.slice(0, 4));
+    $('stNext').disabled = ST.mode === 'all' || (ST.mode === 'month' ? ST.ym >= S.todayISO.slice(0, 7) : ST.year >= S.todayISO.slice(0, 4));
+
+    const body = $('statsBody');
+    if (!st.work && !Object.keys(st.abs).length) { body.innerHTML = '<div class="hist-empty">Keine Buchungen in diesem Zeitraum.</div>'; return; }
+
+    let h = '<div class="st-tiles">' +
+        `<div class="stat st-tile"><span class="stat-label">Arbeitstage</span><span class="stat-value">${st.work}</span><span class="st-sub">${st.noLoc ? `${st.noLoc} ohne Ortsangabe` : ''}</span></div>` +
+        `<div class="stat st-tile st-ho"><span class="stat-label">${icon('house')}Homeoffice</span><span class="stat-value">${st.ho}</span><span class="st-sub">${located ? `<b>${hoP} %</b> der Arbeitstage` : ''}</span></div>` +
+        `<div class="stat st-tile st-office"><span class="stat-label">${icon('building')}Büro</span><span class="stat-value">${st.office}</span><span class="st-sub">${located ? `<b>${offP} %</b> der Arbeitstage` : ''}</span></div>` +
+        '</div>';
+    if (located) {
+        h += `<div class="st-ratio" role="img" aria-label="Homeoffice ${hoP} Prozent, Büro ${offP} Prozent"><i class="ho" style="width:${hoP}%"></i><i class="office" style="width:${offP}%"></i></div>` +
+            `<div class="cal-key"><span class="ho">${icon('house')}Homeoffice</span><span class="office">${icon('building')}Büro</span></div>`;
+    }
+    const others = Object.entries(TYPES).filter(([k]) => k !== 'work').map(([, v]) => v);
+    h += `<div class="st-note">Arbeitstage: Tage mit Arbeitszeit. ${others.slice(0, -1).join(', ')} und ${others[others.length - 1]} zählen nicht mit.${st.noLoc ? ` Die Prozentwerte beziehen sich auf die ${located} Arbeitstage mit Ortsangabe.` : ''}</div>`;
+
+    if (located) {
+        const wd = st.wd.map((d, i) => ({ label: WD_SHORT[i], title: WD_LONG[i], ...d })).filter((d, i) => i < 5 || d.ho + d.office > 0);
+        h += '<div class="st-title">Nach Wochentag</div>' + colChart(wd, 44);
+        if (ST.mode !== 'month') h += '<div class="st-title">Verlauf pro Monat</div>' + colChart(statsMonthItems(st), ST.mode === 'all' ? 46 : 34, 'trend');
+    }
+
+    const absTypes = Object.keys(TYPES).filter(t => t !== 'work' && st.abs[t]);
+    h += '<div class="st-title">Andere Tagesarten</div>' + (absTypes.length
+        ? '<div class="st-chips">' + absTypes.map(t => `<span class="st-chip">${icon(TYPE_ICON[t])}<span>${TYPES[t]}</span><b>${days(st.abs[t])}</b></span>`).join('') + '</div>'
+        : '<div class="abs-empty">Keine im Zeitraum.</div>');
+
+    const wt = st.wt, nT = wt.reduce((t, d) => t + d.n, 0);
+    if (nT) {
+        const sumN = wt.reduce((t, d) => t + d.netto, 0), avgAll = Math.round(sumN / nT);
+        const avgs = wt.map(d => d.n ? Math.round(d.netto / d.n) : null);
+        const maxAvg = Math.max(1, ...avgs.filter(v => v !== null));
+        h += `<div class="st-title">Ø Arbeitszeit pro Wochentag <span style="font-weight:400">(Netto inkl. Wegezeit, aus ${nT} ${nT === 1 ? 'Tag' : 'Tagen'})</span></div><div class="st-rows">` +
+            wt.map((d, i) => {
+                if (i >= 5 && !d.n) return '';
+                const v = avgs[i], diff = v === null ? 0 : v - avgAll;
+                return `<div class="st-row" title="${WD_LONG[i]}: ${d.n} ${d.n === 1 ? 'Tag' : 'Tage'}"><span class="st-lbl">${WD_SHORT[i]}</span>` +
+                    `<span class="st-hbar"><i style="width:${v === null ? 0 : v / maxAvg * 100}%"></i></span>` +
+                    `<b class="st-val">${v === null ? '–' : toTime(v)}</b>` +
+                    `<span class="st-delta ${diff >= 0 ? 'plus-text' : 'minus-text'}">${v === null ? '' : fmtSaldo(diff)}</span>` +
+                    `<span class="st-meta">${d.n ? `${toClock(Math.round(d.start / d.n))}–${toClock(Math.round(d.end / d.n))} · ${d.n} T` : ''}</span></div>`;
+            }).join('') + '</div>';
+        const fri = wt[4];
+        let msg = `Gesamt Ø ${toTime(avgAll)}. Die Abweichung zeigt den Unterschied zum Gesamtschnitt.`;
+        if (fri.n && nT > fri.n) {
+            const noFri = (sumN - fri.netto) / (nT - fri.n), diff = Math.round(noFri - sumN / nT);
+            msg += diff === 0 ? ' Der Freitag verändert den Schnitt kaum.'
+                : ` Ohne Freitag läge der Schnitt bei ${toTime(Math.round(noFri))}: Der Freitag (${fri.n} von ${nT} Tagen) ${diff > 0 ? 'senkt' : 'hebt'} ihn um ${toTime(Math.abs(diff))}.`;
+        }
+        h += `<div class="st-note">${msg}</div>`;
+    }
+    body.innerHTML = h;
+    const tr = body.querySelector('.st-chart.trend');
+    if (tr) tr.scrollLeft = tr.scrollWidth;                    // bei „Gesamt“ zuerst die neuesten Monate zeigen
+}
+function statsNav(delta) {
+    if (ST.mode === 'month') {
+        const [y, m] = ST.ym.split('-').map(Number), d = new Date(y, m - 1 + delta, 1);
+        ST.ym = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+    } else if (ST.mode === 'year') ST.year = String(+ST.year + delta);
+    renderStatsDlg();
+}
+function openStats() {
+    ST.ym = S.viewMonth; ST.year = S.viewMonth.slice(0, 4);    // startet mit dem Monat, den der Kalender gerade zeigt
+    renderStatsDlg();
+    $('statsDlg').showModal();
+}
+document.querySelector('#statsDlg .tabs').onclick = e => {
+    const b = e.target.closest('[data-mode]');
+    if (b) { ST.mode = b.dataset.mode; renderStatsDlg(); }
+};
+$('stPrev').onclick = () => statsNav(-1);
+$('stNext').onclick = () => statsNav(1);
+$('statsClose').onclick = () => $('statsDlg').close();
+$('statsDlg').addEventListener('click', e => {                 // Klick auf den abgedunkelten Hintergrund schließt
+    if (e.target !== e.currentTarget) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) e.currentTarget.close();
+});
+
 async function init() {
     $('labelSoll').textContent = `Soll-Ende (${toTime(SOLL_MIN)}h)`;
     try {
