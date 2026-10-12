@@ -72,6 +72,8 @@
     .loc-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
     #travelInputGroup { display: none; width: 230px; }
+    .travel-check { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+    .travel-check input { flex: none; width: 16px; height: 16px; padding: 0; accent-color: var(--accent); }
     .travel-row { display: flex; align-items: center; gap: 8px; }
     .travel-row input { flex: 1; text-align: center; padding: 0 6px; }
     .unit { color: var(--muted); font-size: 0.85rem; }
@@ -400,8 +402,8 @@
                 <input type="time" id="sollInput" value="08:00" onchange="onSollChange()">
             </div>
             <div class="ctl" id="travelInputGroup">
-                <span class="ctl-label">Wegezeit</span>
-                <div class="travel-row">
+                <label class="travel-check"><input type="checkbox" id="travelOnInput" onchange="onTravelOn()">Wegezeit vorhanden</label>
+                <div class="travel-row" id="travelRow">
                     <input type="number" id="travelTimeInput" min="1" max="15" value="5" aria-label="Wegezeit in Minuten" oninput="onTravelInput()" onchange="applyInputs()">
                     <span class="unit">Min ×</span>
                     <input type="number" id="travelCountInput" min="1" max="10" value="1" aria-label="Anzahl der Wege" oninput="onTravelInput()" onchange="applyInputs()">
@@ -653,7 +655,7 @@ const MIGRATIONS = [
 const SCHEMA_VERSION = MIGRATIONS.length;
 
 /* ================= Zustand ================= */
-const DEFAULTS = { lastStart: '08:00', planStart: '08:00', planEnd: '16:30', locLive: 'HO', locPlan: 'HO', travelMin: 5, travelCount: 1, carryOver: 0, sollMin: 480 };
+const DEFAULTS = { lastStart: '08:00', planStart: '08:00', planEnd: '16:30', locLive: 'HO', locPlan: 'HO', travelMin: 5, travelCount: 1, travelOn: true, carryOver: 0, sollMin: 480 };
 const S = {
     db: null,
     mode: 'live',
@@ -759,6 +761,7 @@ const SETTING_RULES = {
     locLive: locRule, locPlan: locRule,
     travelMin: v => (Number.isInteger(v) && v >= 1 && v <= TRAVEL_MIN_MAX) ? v : undefined,
     travelCount: v => (Number.isInteger(v) && v >= 1 && v <= TRAVEL_CNT_MAX) ? v : undefined,
+    travelOn: v => typeof v === 'boolean' ? v : undefined,
     carryOver: v => (Number.isInteger(v) && Math.abs(v) <= MAX_CARRY) ? v : undefined,
     sollMin: v => (Number.isInteger(v) && v >= 60 && v <= 720) ? v : undefined
 };
@@ -800,7 +803,7 @@ function sanitizeDay(d) {
     if (!intIn(d.travelCount, 1, TRAVEL_CNT_MAX)) return { error: `${lbl}: Anzahl Wege ungültig` };
     if (!intIn(d.saldo, -MAX_DAY_SALDO, MAX_DAY_SALDO)) return { error: `${lbl}: Saldo ungültig` };
     if (d.netto != null && !intIn(d.netto, 0, 1440)) return { error: `${lbl}: Netto ungültig` };
-    for (const k of ['finished', 'manual', 'startConfirmed', 'check', 'locSet']) {
+    for (const k of ['finished', 'manual', 'startConfirmed', 'check', 'locSet', 'travel']) {
         if (d[k] !== undefined && typeof d[k] !== 'boolean') return { error: `${lbl}: "${k}" muss wahr/falsch sein` };
     }
     const type = d.type === undefined ? 'work' : d.type;      // Dateien aus Schema 1 haben keine Tagesart
@@ -817,6 +820,7 @@ function sanitizeDay(d) {
         end: !free && d.end != null ? hmRule(d.end) : null,
         breaks: free ? [] : br.list,
         location: d.location, travelMin: d.travelMin, travelCount: d.travelCount,
+        travel: d.travel !== false,                   // Wegezeit vorhanden (ältere Dateien und Tage ohne Angabe: ja)
         netto: free ? null : (d.netto ?? null), saldo: d.saldo,
         finished: free || d.finished === true || manual, manual,
         check: !free && d.check === true,
@@ -826,7 +830,7 @@ function sanitizeDay(d) {
 const cleanDay = r => ({
     date: r.date, type: r.type, start: r.start, startConfirmed: r.startConfirmed, end: r.end,
     breaks: (r.breaks || []).map(b => ({ from: b.from, to: b.to })),
-    location: r.location, travelMin: r.travelMin, travelCount: r.travelCount,
+    location: r.location, travelMin: r.travelMin, travelCount: r.travelCount, travel: r.travel !== false,
     netto: r.netto, saldo: r.saldo, finished: r.finished, manual: r.manual, check: r.check === true, locSet: r.locSet === true
 });
 function validateImport(raw) {
@@ -868,7 +872,7 @@ function saveDay(rec) {
 function newDay(date) {
     return {
         date, type: 'work', start: S.settings.lastStart, startConfirmed: false, end: null, breaks: [],
-        location: S.settings.locLive, travelMin: S.settings.travelMin, travelCount: S.settings.travelCount,
+        location: S.settings.locLive, travelMin: S.settings.travelMin, travelCount: S.settings.travelCount, travel: S.settings.travelOn,
         netto: null, saldo: null, finished: false, manual: false
     };
 }
@@ -985,14 +989,14 @@ function calc(startMin, nowMin, nowPrecise, travelTotal, breaks = [], horizon = 
     const netto = work + travelTotal;
     return { early, start, abs, absAll, t6, t6e, soll, t9, t9e, max, nowMin, nowPrecise, work, netto, saldo: Math.round(netto - SOLL_MIN) };
 }
-const travelTotal = (loc, min, cnt) => loc === 'Office' ? min * cnt : 0;
+const travelTotal = (loc, min, cnt, on = true) => loc === 'Office' && on ? min * cnt : 0;      // Wegezeit nur im Büro und nur, wenn vorhanden
 
 /* Rechnet einen Tagesdatensatz. Beendeter Tag: alles bleibt auf dem Feierabend stehen. */
 function recCalc(rec, nowMin, precise) {
     const startMin = parseHM(rec.start) ?? parseHM(DEFAULTS.lastStart);
     const endMin = rec.finished ? parseHM(rec.end) : null;
     const brk = rec.breaks.map(b => [parseHM(b.from), parseHM(b.to)]);
-    return calc(startMin, endMin ?? nowMin, endMin ?? precise, travelTotal(rec.location, rec.travelMin, rec.travelCount), brk, endMin ?? 1440);
+    return calc(startMin, endMin ?? nowMin, endMin ?? precise, travelTotal(rec.location, rec.travelMin, rec.travelCount, rec.travel !== false), brk, endMin ?? 1440);
 }
 function liveView(now) {
     const rec = S.today;
@@ -1008,7 +1012,7 @@ function liveView(now) {
 function planView() {
     const s = S.settings;
     const end = parseHM(s.planEnd);
-    const c = calc(parseHM(s.planStart), end, end, travelTotal(s.locPlan, s.travelMin, s.travelCount));
+    const c = calc(parseHM(s.planStart), end, end, travelTotal(s.locPlan, s.travelMin, s.travelCount, s.travelOn));
     return { c, rec: null, location: s.locPlan, live: false, manual: false, free: false, saldo: c.saldo, netto: c.netto };
 }
 /* Speichert den berechneten Stand des heutigen Tages, aber nur wenn er sich geändert hat. */
@@ -1048,8 +1052,9 @@ function renderMain(v) {
     $('rowMax').classList.toggle('limit-reached', limit);
     setHTML($('labelMax'), limit ? `${icon('alert')}Max erreicht! (${MAX_NETTO / 60}h)` : `Max-Ende (${MAX_NETTO / 60}h)`);
 
+    const tOn = v.rec ? v.rec.travel !== false : S.settings.travelOn;                  // Wegezeit vorhanden?
     setText($('currentNetto'), v.free ? TYPES[v.type] : v.netto == null ? '–' : toTime(v.netto) + ' h');
-    setText($('nettoLabel'), v.free ? 'Tagesart' : v.manual ? 'Netto (manuell erfasst)' : 'Netto (+ Wegezeit)');
+    setText($('nettoLabel'), v.free ? 'Tagesart' : v.manual ? 'Netto (manuell erfasst)' : v.location === 'Office' && tOn ? 'Netto (+ Wegezeit)' : 'Netto');
     $('todayCard').classList.toggle('free', !!v.free);
     setText($('balance'), fmtSaldo(v.saldo));
     $('statusBox').className = 'stat hero ' + (v.saldo >= 0 ? 'plus' : 'minus');
@@ -1057,6 +1062,7 @@ function renderMain(v) {
     $('btnHO').className = v.location === 'HO' ? 'loc-btn active' : 'loc-btn';
     $('btnOffice').className = v.location === 'Office' ? 'loc-btn active' : 'loc-btn';
     $('travelInputGroup').style.display = v.location === 'Office' ? 'block' : 'none';
+    $('travelRow').style.display = tOn ? '' : 'none';
 
     const info = $('infoMsg');
     if (c.early) { info.style.display = 'flex'; setHTML(info, icon('info') + 'Arbeitsbeginn wird ab 6 Uhr gerechnet.'); }
@@ -1231,6 +1237,7 @@ function applyInputs() {
     endTimeInput.value = s.planEnd;
     travelTimeInput.value = live ? rec.travelMin : s.travelMin;
     travelCountInput.value = live ? rec.travelCount : s.travelCount;
+    $('travelOnInput').checked = live ? rec.travel !== false : s.travelOn;
     updateButtons();
 }
 function updateButtons() {
@@ -1258,6 +1265,12 @@ function onEndInput() {
     const v = endTimeInput.value;
     if (parseHM(v) === null) return;
     setSetting('planEnd', v);
+    refresh();
+}
+function onTravelOn() {
+    const on = $('travelOnInput').checked;
+    if (S.mode === 'live') { S.today.travel = on; saveDay(S.today); histDirty = true; }
+    setSetting('travelOn', on);
     refresh();
 }
 function onTravelInput() {
@@ -1325,7 +1338,7 @@ function setDayTimes(iso, v) {
     let rec = S.days.get(iso);
     if (!rec) { rec = newDay(iso); S.days.set(iso, rec); }
     S.viewMonth = iso.slice(0, 7);
-    Object.assign(rec, { type: 'work', start: v.start, end: v.end, location: v.location, breaks: v.breaks, travelMin: v.travelMin, travelCount: v.travelCount, manual: false, startConfirmed: true, finished: !!v.end, check: false, locSet: true });
+    Object.assign(rec, { type: 'work', start: v.start, end: v.end, location: v.location, breaks: v.breaks, travelMin: v.travelMin, travelCount: v.travelCount, travel: v.travel, manual: false, startConfirmed: true, finished: !!v.end, check: false, locSet: true });
     if (rec.finished) { const c = recCalc(rec); rec.saldo = c.saldo; rec.netto = c.netto; }
     saveDay(rec);
     if (iso === S.todayISO) { ensureToday(new Date()); applyInputs(); }
@@ -1337,7 +1350,7 @@ function applyDay(iso, v) {
     if (v.mode === 'saldo') return setDaySaldo(iso, parseSaldo(v.saldo, 2, MAX_DAY_SALDO), v.locManual);
     const old = S.days.get(iso);      // bei Homeoffice bleiben die bisherigen Wegezeit-Werte des Tages erhalten
     const travel = (x, lo, hi, fb) => inRange(x, lo, hi) ? Number(x) : fb;
-    setDayTimes(iso, { start: hmRule(v.start), end: v.end ? hmRule(v.end) : null, location: v.location, breaks: checkBreaks(v.breaks).list,
+    setDayTimes(iso, { start: hmRule(v.start), end: v.end ? hmRule(v.end) : null, location: v.location, breaks: checkBreaks(v.breaks).list, travel: v.travel === '1',
         travelMin: travel(v.travelMin, 1, TRAVEL_MIN_MAX, old ? old.travelMin : S.settings.travelMin), travelCount: travel(v.travelCount, 1, TRAVEL_CNT_MAX, old ? old.travelCount : S.settings.travelCount) });
 }
 function dayFields(rec, withDate) {
@@ -1350,8 +1363,9 @@ function dayFields(rec, withDate) {
         { key: 'start', label: 'Beginn', type: 'time', value: rec?.start ?? S.settings.lastStart, half: true, showIf: times },
         { key: 'end', label: 'Ende', type: 'time', value: rec?.end ?? '', half: true, showIf: times },
         { key: 'location', label: 'Arbeitsort', type: 'select', options: LOCATIONS, value: rec ? rec.location : S.settings.locLive, showIf: times },
-        { key: 'travelMin', label: 'Wegezeit je Buchung (Min)', type: 'number', value: rec ? rec.travelMin : S.settings.travelMin, half: true, showIf: v => times(v) && v.location === 'Office' },
-        { key: 'travelCount', label: 'Anzahl Wegezeiten', type: 'number', value: rec ? rec.travelCount : S.settings.travelCount, half: true, showIf: v => times(v) && v.location === 'Office' },
+        { key: 'travel', label: 'Wegezeit vorhanden', type: 'select', options: { '1': 'Ja', '0': 'Nein' }, value: rec ? (rec.travel !== false ? '1' : '0') : (S.settings.travelOn ? '1' : '0'), showIf: v => times(v) && v.location === 'Office' },
+        { key: 'travelMin', label: 'Wegezeit je Buchung (Min)', type: 'number', value: rec ? rec.travelMin : S.settings.travelMin, half: true, showIf: v => times(v) && v.location === 'Office' && v.travel === '1' },
+        { key: 'travelCount', label: 'Anzahl Wegezeiten', type: 'number', value: rec ? rec.travelCount : S.settings.travelCount, half: true, showIf: v => times(v) && v.location === 'Office' && v.travel === '1' },
         { key: 'breaks', label: 'Abwesenheiten', type: 'breaks', value: rec ? rec.breaks : [], showIf: times },
         { key: 'saldo', label: 'Saldo (H:MM)', value: rec && rec.saldo != null ? signedHM(rec.saldo) : '0:00', showIf: direct },
         { key: 'locManual', label: 'Arbeitsort', type: 'select', options: { '': 'Keine Angabe', ...LOCATIONS }, value: rec ? (showLoc(rec) ? rec.location : '') : S.settings.locLive, showIf: direct }
@@ -1368,7 +1382,7 @@ function dayError(v, iso) {
     if (!v.end && iso !== S.todayISO) return 'Bitte das Arbeitsende eintragen.';
     if (v.end && e === null) return 'Das Arbeitsende ist ungültig.';
     if (e !== null && e <= s) return 'Das Ende muss nach dem Beginn liegen.';
-    if (v.location === 'Office' && (!inRange(v.travelMin, 1, TRAVEL_MIN_MAX) || !inRange(v.travelCount, 1, TRAVEL_CNT_MAX))) return `Wegezeit: 1 bis ${TRAVEL_MIN_MAX} Minuten, 1 bis ${TRAVEL_CNT_MAX} Wegezeiten.`;
+    if (v.location === 'Office' && v.travel === '1' && (!inRange(v.travelMin, 1, TRAVEL_MIN_MAX) || !inRange(v.travelCount, 1, TRAVEL_CNT_MAX))) return `Wegezeit: 1 bis ${TRAVEL_MIN_MAX} Minuten, 1 bis ${TRAVEL_CNT_MAX} Wegezeiten.`;
     const br = checkBreaks(v.breaks);
     return br.error || breaksWithin(br.list, v.start, v.end || null);
 }
@@ -2079,7 +2093,7 @@ const erpSame = (a, b) => !!a && !!b && a.type === b.type && (b.type !== 'work' 
 /* Berechnet den Datensatz einer Zeile neu (nach Eingabe von Ende oder Tagesart). */
 function erpEval(row) {
     row.rec = null; row.err = null;
-    const base = { date: row.date, startConfirmed: true, travelMin: row.trav ? row.trav.min : S.settings.travelMin, travelCount: row.trav ? row.trav.cnt : S.settings.travelCount, manual: false, finished: true };
+    const base = { date: row.date, startConfirmed: true, travelMin: row.trav ? row.trav.min : S.settings.travelMin, travelCount: row.trav ? row.trav.cnt : S.settings.travelCount, travel: row.trav ? true : S.settings.travelOn, manual: false, finished: true };
     let raw;
     if (row.kind === 'empty') {                                               // Werktag ohne Buchung: Platzhalter mit Saldo 0, im Kalender markiert
         raw = { ...base, type: 'work', start: null, end: null, breaks: [], location: S.settings.locLive, netto: null, saldo: 0, manual: true, check: true };
