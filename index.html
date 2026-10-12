@@ -93,7 +93,7 @@
 
     /* Tageslineal */
     .ruler { margin-bottom: 28px; }
-    .tl-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 0.85rem; color: var(--muted); }
+    .tl-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 10px; font-size: 0.85rem; color: var(--muted); }
     .tl-head b { font-size: 1.1rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
     .tl-head b.done { color: var(--accent); }
     .tl-track { position: relative; height: 14px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
@@ -427,7 +427,7 @@
         </div>
 
         <div class="ruler">
-            <div class="tl-head" id="tlHead"><span>Tagessoll erreicht</span><b id="tlPct">-</b></div>
+            <div class="tl-head" id="tlHead"><b id="tlPct">-</b><span id="tlSollTxt"></span></div>
             <div class="tl-track">
                 <div class="tl-fill" id="tlFill"></div>
                 <div class="tl-pause" id="tlP1"></div>
@@ -1070,6 +1070,7 @@ function renderMain(v) {
         const pctSoll = Math.floor(v.netto / SOLL_MIN * 100);            // abgerundet: 100 % erst, wenn das Tagessoll wirklich erreicht ist
         setText($('tlPct'), pctSoll + ' %');
         $('tlPct').classList.toggle('done', pctSoll >= 100);
+        setText($('tlSollTxt'), `(der Tagessollzeit ${toTime(SOLL_MIN)})`);
     }
     const range = Math.max(1, c.max - c.start);
     const pct = x => clamp((x - c.start) / range * 100, 0, 100);
