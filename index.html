@@ -399,7 +399,7 @@
             <div class="ctl" id="travelInputGroup">
                 <span class="ctl-label">Wegezeit</span>
                 <div class="travel-row">
-                    <input type="number" id="travelTimeInput" min="1" max="15" value="10" aria-label="Wegezeit in Minuten" oninput="onTravelInput()" onchange="applyInputs()">
+                    <input type="number" id="travelTimeInput" min="1" max="15" value="5" aria-label="Wegezeit in Minuten" oninput="onTravelInput()" onchange="applyInputs()">
                     <span class="unit">Min ×</span>
                     <input type="number" id="travelCountInput" min="1" max="10" value="1" aria-label="Anzahl der Wege" oninput="onTravelInput()" onchange="applyInputs()">
                 </div>
@@ -649,7 +649,7 @@ const MIGRATIONS = [
 const SCHEMA_VERSION = MIGRATIONS.length;
 
 /* ================= Zustand ================= */
-const DEFAULTS = { lastStart: '08:00', planStart: '08:00', planEnd: '16:30', locLive: 'HO', locPlan: 'HO', travelMin: 10, travelCount: 1, carryOver: 0, sollMin: 480 };
+const DEFAULTS = { lastStart: '08:00', planStart: '08:00', planEnd: '16:30', locLive: 'HO', locPlan: 'HO', travelMin: 5, travelCount: 1, carryOver: 0, sollMin: 480 };
 const S = {
     db: null,
     mode: 'live',
@@ -1314,7 +1314,7 @@ function setDayTimes(iso, v) {
     let rec = S.days.get(iso);
     if (!rec) { rec = newDay(iso); S.days.set(iso, rec); }
     S.viewMonth = iso.slice(0, 7);
-    Object.assign(rec, { type: 'work', start: v.start, end: v.end, location: v.location, breaks: v.breaks, manual: false, startConfirmed: true, finished: !!v.end, check: false, locSet: true });
+    Object.assign(rec, { type: 'work', start: v.start, end: v.end, location: v.location, breaks: v.breaks, travelMin: v.travelMin, travelCount: v.travelCount, manual: false, startConfirmed: true, finished: !!v.end, check: false, locSet: true });
     if (rec.finished) { const c = recCalc(rec); rec.saldo = c.saldo; rec.netto = c.netto; }
     saveDay(rec);
     if (iso === S.todayISO) { ensureToday(new Date()); applyInputs(); }
@@ -1324,7 +1324,10 @@ function setDayTimes(iso, v) {
 function applyDay(iso, v) {
     if (v.type !== 'work') return setDayType(iso, v.type);
     if (v.mode === 'saldo') return setDaySaldo(iso, parseSaldo(v.saldo, 2, MAX_DAY_SALDO), v.locManual);
-    setDayTimes(iso, { start: hmRule(v.start), end: v.end ? hmRule(v.end) : null, location: v.location, breaks: checkBreaks(v.breaks).list });
+    const old = S.days.get(iso);      // bei Homeoffice bleiben die bisherigen Wegezeit-Werte des Tages erhalten
+    const travel = (x, lo, hi, fb) => inRange(x, lo, hi) ? Number(x) : fb;
+    setDayTimes(iso, { start: hmRule(v.start), end: v.end ? hmRule(v.end) : null, location: v.location, breaks: checkBreaks(v.breaks).list,
+        travelMin: travel(v.travelMin, 1, TRAVEL_MIN_MAX, old ? old.travelMin : S.settings.travelMin), travelCount: travel(v.travelCount, 1, TRAVEL_CNT_MAX, old ? old.travelCount : S.settings.travelCount) });
 }
 function dayFields(rec, withDate) {
     const work = v => v.type === 'work', times = v => work(v) && v.mode === 'times', direct = v => work(v) && v.mode === 'saldo';
@@ -1336,11 +1339,14 @@ function dayFields(rec, withDate) {
         { key: 'start', label: 'Beginn', type: 'time', value: rec?.start ?? S.settings.lastStart, half: true, showIf: times },
         { key: 'end', label: 'Ende', type: 'time', value: rec?.end ?? '', half: true, showIf: times },
         { key: 'location', label: 'Arbeitsort', type: 'select', options: LOCATIONS, value: rec ? rec.location : S.settings.locLive, showIf: times },
+        { key: 'travelMin', label: 'Wegezeit je Buchung (Min)', type: 'number', value: rec ? rec.travelMin : S.settings.travelMin, half: true, showIf: v => times(v) && v.location === 'Office' },
+        { key: 'travelCount', label: 'Anzahl Wegezeiten', type: 'number', value: rec ? rec.travelCount : S.settings.travelCount, half: true, showIf: v => times(v) && v.location === 'Office' },
         { key: 'breaks', label: 'Abwesenheiten', type: 'breaks', value: rec ? rec.breaks : [], showIf: times },
         { key: 'saldo', label: 'Saldo (H:MM)', value: rec && rec.saldo != null ? signedHM(rec.saldo) : '0:00', showIf: direct },
         { key: 'locManual', label: 'Arbeitsort', type: 'select', options: { '': 'Keine Angabe', ...LOCATIONS }, value: rec ? (showLoc(rec) ? rec.location : '') : S.settings.locLive, showIf: direct }
     ];
 }
+const inRange = (x, lo, hi) => { const n = Number(x); return x !== '' && Number.isInteger(n) && n >= lo && n <= hi; };
 function dayError(v, iso) {
     if (!validISO(iso)) return 'Bitte ein gültiges Datum wählen.';
     if (iso > S.todayISO) return 'Das Datum darf nicht in der Zukunft liegen.';
@@ -1351,6 +1357,7 @@ function dayError(v, iso) {
     if (!v.end && iso !== S.todayISO) return 'Bitte das Arbeitsende eintragen.';
     if (v.end && e === null) return 'Das Arbeitsende ist ungültig.';
     if (e !== null && e <= s) return 'Das Ende muss nach dem Beginn liegen.';
+    if (v.location === 'Office' && (!inRange(v.travelMin, 1, TRAVEL_MIN_MAX) || !inRange(v.travelCount, 1, TRAVEL_CNT_MAX))) return `Wegezeit: 1 bis ${TRAVEL_MIN_MAX} Minuten, 1 bis ${TRAVEL_CNT_MAX} Wegezeiten.`;
     const br = checkBreaks(v.breaks);
     return br.error || breaksWithin(br.list, v.start, v.end || null);
 }
@@ -2013,9 +2020,13 @@ function erpTravel(list) {
     if (!r.length) return null;
     if (r.every(v => v === r[0]) && r[0] <= TRAVEL_MIN_MAX && r.length <= TRAVEL_CNT_MAX) return { min: r[0], cnt: r.length, note: null };
     const total = r.reduce((s, v) => s + v, 0);
-    if (total <= TRAVEL_MIN_MAX) return { min: total, cnt: 1, note: `Wegezeiten ${r.join(' + ')} Min. als ein Weg von ${total} Min. übernommen.` };
+    /* Die App rechnet nur mit Minuten × Anzahl. Die Summe aus dem PDF bleibt exakt, wenn sie sich so aufteilen lässt (zuerst mit möglichst vielen Wegen). */
+    const order = [];
+    for (let c = Math.min(r.length, TRAVEL_CNT_MAX); c >= 1; c--) order.push(c);
+    for (let c = r.length + 1; c <= TRAVEL_CNT_MAX; c++) order.push(c);
+    for (const c of order) if (total % c === 0 && total / c <= TRAVEL_MIN_MAX) return { min: total / c, cnt: c, note: `Wegezeiten ${r.join(' + ')} Min. (zusammen ${total} Min.) als ${c} × ${total / c} Min. übernommen.` };
     const cnt = Math.min(r.length, TRAVEL_CNT_MAX), min = Math.min(TRAVEL_MIN_MAX, Math.round(total / cnt));
-    return { min, cnt, note: `Wegezeiten unterschiedlich (${r.join(' + ')} Min.), als ${cnt} × ${min} Min. gerundet.` };
+    return { min, cnt, note: `Wegezeiten ${r.join(' + ')} Min. lassen sich nicht exakt als Minuten × Anzahl abbilden, übernommen als ${cnt} × ${min} Min. (${cnt * min} statt ${total} Min.).` };
 }
 
 /* Beginn, Ende und Abwesenheiten (Lücken zwischen den Buchungen, also auch gebuchte Pausen) eines Tages.
